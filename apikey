@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div id="user-id">Loading...</div>
+    <script>
+      fetch('/api/user')
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('user-id').textContent = "User ID: " + data.userId;
+        })
+        .catch(error => {
+          document.getElementById('user-id').textContent = "Error loading user ID";
+        });
+    </script>
+  </body>
+</html>
