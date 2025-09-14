@@ -108,6 +108,10 @@
         Keep track of your staff's strike count.
     </p>
 
+    <div id="user-info" class="mb-4 text-center text-gray-600">
+        Your User ID: <span id="user-id" class="font-mono text-sm bg-gray-200 px-2 py-1 rounded-md">Loading...</span>
+    </div>
+
     <div id="header-actions" class="flex justify-between items-center mb-6">
         <div class="flex items-center space-x-4">
             <button id="add-member-button" class="action-button px-6 py-3 bg-green-500 text-white font-semibold rounded-full shadow-lg hover:bg-green-600 flex items-center hidden">
@@ -243,6 +247,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot, collection, query, getDocs, writeBatch, addDoc, serverTimestamp, where, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    setLogLevel('debug');
 
     // Global variables for Firebase
     let app, auth, db, userId, appId;
@@ -285,6 +291,7 @@
 
     const loadingMessageEl = document.getElementById('loading-message');
     const staffTableEl = staffListContainerEl.querySelector('table');
+    const userIdEl = document.getElementById('user-id');
 
     // Initialize Firebase
     function initializeFirebase() {
@@ -299,6 +306,7 @@
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
+                    userIdEl.textContent = userId;
                     fetchData();
                     fetchBinData();
                     fetchAdminNotes();
@@ -394,15 +402,25 @@
             });
             if (staffData.length === 0) {
                  // Initialize with default members if no data found
+                const initialMembers = [];
                 for (let i = 1; i <= 10; i++) {
-                    staffData.push({
+                    initialMembers.push({
                         id: (nextId++).toString(),
                         name: `Team Member ${i}`,
                         strikes: 0,
                         reasons: ["", "", ""]
                     });
                 }
-                saveData();
+                const batch = writeBatch(db);
+                initialMembers.forEach(member => {
+                    const docRef = doc(staffCollectionRef, member.id);
+                    batch.set(docRef, member);
+                });
+                batch.commit().then(() => {
+                    console.log("Initial staff members added.");
+                }).catch(e => {
+                    console.error("Error adding initial staff members:", e);
+                });
             } else {
                 nextId = staffData.length > 0 ? Math.max(...staffData.map(m => parseInt(m.id) || 0)) + 1 : 1;
                 renderStaffList();
@@ -446,7 +464,8 @@
         const batch = writeBatch(db);
         const staffCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/staff_members`);
         
-        // Clear existing docs to avoid duplicates
+        // This method deletes all documents and recreates them, which is not ideal for large datasets
+        // but works for this application. For a production app, you would only update changed documents.
         const existingDocs = await getDocs(staffCollectionRef);
         existingDocs.forEach(doc => {
             batch.delete(doc.ref);
