@@ -101,7 +101,7 @@
 </head>
 <body>
 
-<div class="container">
+<div id="main-app" class="container">
     <h1 class="text-5xl font-extrabold text-center mb-2 header-bg underline">Splash Staff Warning System</h1>
     <p class="text-center text-gray-500 mb-8 font-semibold italic text-lg">
         Keep track of your staff's strike count.
@@ -260,6 +260,8 @@
     let isReadOnly = true;
 
     // HTML Elements
+    const mainAppEl = document.getElementById('main-app');
+
     const staffListEl = document.getElementById('staff-list');
     const addMemberButton = document.getElementById('add-member-button');
     const saveChangesButton = document.getElementById('save-changes-button');
@@ -293,17 +295,21 @@
     const emptyMessageEl = document.getElementById('empty-message');
     const staffTableEl = staffListContainerEl.querySelector('table');
     const userIdEl = document.getElementById('user-id');
+    
+    window.onload = () => {
+        initializeFirebase();
+    };
 
-    // Initialize Firebase
+    // Initialize Firebase using global variables
     function initializeFirebase() {
         try {
-            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            const firebaseConfig = JSON.parse(__firebase_config);
             appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
             
-            // Sign in anonymously and wait for the auth state to be ready
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
@@ -329,18 +335,14 @@
     // Switch to read-only view
     function switchToPreviewMode() {
         isReadOnly = true;
-        // Hide admin-specific buttons
         addMemberButton.classList.add('hidden');
         saveChangesButton.classList.add('hidden');
         adminPanelButton.classList.add('hidden');
         binButton.classList.add('hidden');
-
-        // Show general buttons
         adminLoginButton.classList.remove('hidden');
         previewModeButton.classList.add('hidden');
         filterDemotedButton.classList.remove('hidden');
 
-        // Show main list and hide other panels
         adminPanelEl.classList.add('hidden');
         binPanelEl.classList.add('hidden');
         staffListContainerEl.classList.remove('hidden');
@@ -356,10 +358,7 @@
     // Switch to admin view
     function switchToAdminMode() {
         isReadOnly = false;
-        // Hide general buttons
         adminLoginButton.classList.add('hidden');
-
-        // Show admin-specific buttons
         addMemberButton.classList.remove('hidden');
         saveChangesButton.classList.remove('hidden');
         adminPanelButton.classList.remove('hidden');
@@ -367,7 +366,6 @@
         previewModeButton.classList.remove('hidden');
         filterDemotedButton.classList.remove('hidden');
 
-        // Show main list and hide other panels
         adminPanelEl.classList.add('hidden');
         binPanelEl.classList.add('hidden');
         staffListContainerEl.classList.remove('hidden');
@@ -387,7 +385,6 @@
             return;
         }
 
-        // Fetch staff data
         const staffCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/staff_members`);
         const staffQuery = query(staffCollectionRef);
         onSnapshot(staffQuery, (snapshot) => {
@@ -440,12 +437,9 @@
     async function saveData() {
         if (!db || !userId) return;
 
-        // Save staff data
         const batch = writeBatch(db);
         const staffCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/staff_members`);
         
-        // This method deletes all documents and recreates them, which is not ideal for large datasets
-        // but works for this application. For a production app, you would only update changed documents.
         const existingDocs = await getDocs(staffCollectionRef);
         existingDocs.forEach(doc => {
             batch.delete(doc.ref);
@@ -461,7 +455,6 @@
     function renderStaffList() {
         staffListEl.innerHTML = '';
         
-        // Toggle actions column based on read-only mode
         if (isReadOnly) {
             actionsHeaderEl.classList.add('hidden');
         } else {
@@ -725,7 +718,6 @@
         }
     });
 
-    // Event listener for blur event on editable name spans
     staffListEl.addEventListener('blur', (e) => {
         if (isReadOnly) return;
         const editableSpan = e.target.closest('.name-editable');
@@ -738,7 +730,6 @@
         }
     }, true);
 
-    // Event listener for blur event on textarea
     staffListEl.addEventListener('blur', (e) => {
         if (isReadOnly) return;
         const textarea = e.target.closest('.strike-reason');
@@ -779,8 +770,6 @@
         const id = button.dataset.id;
         recoverFromBin(id);
     });
-
-    initializeFirebase();
 </script>
 
 </body>
