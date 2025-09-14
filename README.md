@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -225,6 +224,7 @@
     <!-- Staff List Table -->
     <div id="staff-list-container" class="overflow-x-auto rounded-2xl shadow-lg">
         <p id="loading-message" class="text-center py-8 text-gray-500 text-lg">Loading...</p>
+        <p id="empty-message" class="text-center py-8 text-gray-500 text-lg hidden">No staff members found. Add some to get started!</p>
         <table class="w-full text-left hidden">
             <thead class="bg-gray-100">
                 <tr>
@@ -290,6 +290,7 @@
     const submitPinButton = document.getElementById('submit-pin-button');
 
     const loadingMessageEl = document.getElementById('loading-message');
+    const emptyMessageEl = document.getElementById('empty-message');
     const staffTableEl = staffListContainerEl.querySelector('table');
     const userIdEl = document.getElementById('user-id');
 
@@ -302,7 +303,7 @@
             auth = getAuth(app);
             db = getFirestore(app);
             
-            // Sign in anonymously
+            // Sign in anonymously and wait for the auth state to be ready
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
@@ -346,6 +347,7 @@
         headerActionsEl.classList.remove('hidden');
         
         loadingMessageEl.classList.add('hidden');
+        emptyMessageEl.classList.add('hidden');
         staffTableEl.classList.remove('hidden');
 
         renderStaffList();
@@ -372,6 +374,7 @@
         headerActionsEl.classList.remove('hidden');
         
         loadingMessageEl.classList.add('hidden');
+        emptyMessageEl.classList.add('hidden');
         staffTableEl.classList.remove('hidden');
 
         renderStaffList();
@@ -400,32 +403,9 @@
                 }
                 return a.id.localeCompare(b.id);
             });
-            if (staffData.length === 0) {
-                 // Initialize with default members if no data found
-                const initialMembers = [];
-                for (let i = 1; i <= 10; i++) {
-                    initialMembers.push({
-                        id: (nextId++).toString(),
-                        name: `Team Member ${i}`,
-                        strikes: 0,
-                        reasons: ["", "", ""]
-                    });
-                }
-                const batch = writeBatch(db);
-                initialMembers.forEach(member => {
-                    const docRef = doc(staffCollectionRef, member.id);
-                    batch.set(docRef, member);
-                });
-                batch.commit().then(() => {
-                    console.log("Initial staff members added.");
-                }).catch(e => {
-                    console.error("Error adding initial staff members:", e);
-                });
-            } else {
-                nextId = staffData.length > 0 ? Math.max(...staffData.map(m => parseInt(m.id) || 0)) + 1 : 1;
-                renderStaffList();
-                renderAdminStaffList();
-            }
+            nextId = staffData.length > 0 ? Math.max(...staffData.map(m => parseInt(m.id) || 0)) + 1 : 1;
+            renderStaffList();
+            renderAdminStaffList();
         });
     }
 
@@ -491,6 +471,14 @@
         let displayData = staffData;
         if (demotedFilterActive) {
             displayData = staffData.filter(member => member.strikes >= 3);
+        }
+
+        if (displayData.length === 0) {
+            emptyMessageEl.classList.remove('hidden');
+            staffTableEl.classList.add('hidden');
+        } else {
+            emptyMessageEl.classList.add('hidden');
+            staffTableEl.classList.remove('hidden');
         }
 
         displayData.forEach(member => {
@@ -654,7 +642,7 @@
     addMemberButton.addEventListener('click', () => {
         staffData.push({
             id: (nextId++).toString(),
-            name: `Team Member ${nextId - 1}`,
+            name: `New Member`,
             strikes: 0,
             reasons: ["", "", ""]
         });
